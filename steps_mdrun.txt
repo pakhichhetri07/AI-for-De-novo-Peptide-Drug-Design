@@ -1,0 +1,33 @@
+gmx pdb2gmx -f BLIP_P0_TEM_1_edited.pdb -o fnl_processed.gro
+select forcefield: Amber99SB-ILDN (6)
+select water model: TIP3P (1)
+
+gmx editconf -f fnl_processed.gro -o fnl_processed.pdb
+
+
+gmx editconf -f fnl_processed.gro -o fnl_newbox.pdb -c -d 1.0 -bt cubic
+
+
+gmx solvate -cp fnl_newbox.pdb -cs spc216.gro -o fnl_solv.gro -p topol.top
+gmx editconf -f fnl_solv.gro -o fnl_solv.pdb
+
+
+gmx grompp -f ions.mdp -c fnl_solv.gro -p topol.top -o ions.tpr  -maxwarn 2
+gmx genion -s ions.tpr -o fnl_solv_ions.gro -pname NA -nname CL -neutral -conc 0.15 -p topol.top
+Select "SOL" (13)
+
+gmx grompp -f minim.mdp -c fnl_solv_ions.gro -p topol.top -o em.tpr
+gmx mdrun -v -deffnm em
+gmx editconf -f em.gro -o em.pdb
+
+gmx energy -f em.edr -o pe_em.xvg
+Type 10 0
+xmgrace pe_em.xvg
+
+gmx grompp -f nvt.mdp -c em.gro -r em.gro -p topol.top -o nvt.tpr
+gmx mdrun -nt 8 -deffnm nvt -v
+
+gmx grompp -f npt.mdp -c nvt.gro -r nvt.gro -t nvt.cpt -p topol.top -o npt.tpr -maxwarn 2
+gmx mdrun -nt 8 -deffnm npt -v
+
+gmx grompp -f md.mdp -c npt.gro -t npt.cpt -p topol.top -o md_0_1.tpr
